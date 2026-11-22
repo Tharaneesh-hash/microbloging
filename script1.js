@@ -1,125 +1,156 @@
 
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
+// Sample users
+const users = ["Arun", "Priya", "Rahul", "Divya"];
+
+let posts = JSON.parse(localStorage.getItem("posts")) || [];
+
+let following = JSON.parse(localStorage.getItem("following")) || [];
+
+let currentUser = "";
+
+// Save data
+function saveData() {
+    localStorage.setItem("posts", JSON.stringify(posts));
+    localStorage.setItem("following", JSON.stringify(following));
 }
 
-body {
-    font-family: Arial, sans-serif;
-    background: #f0f2f5;
-    color: #333;
-}
+// Create Post
+function createPost() {
+    const username = document.getElementById("username").value.trim();
+    const content = document.getElementById("postContent").value.trim();
 
-header {
-    background: #1d9bf0;
-    color: white;
-    text-align: center;
-    padding: 25px;
-}
-
-header h1 {
-    margin-bottom: 8px;
-}
-
-.container {
-    width: 90%;
-    max-width: 700px;
-    margin: 25px auto;
-}
-
-section {
-    background: white;
-    padding: 20px;
-    margin-bottom: 20px;
-    border-radius: 10px;
-    box-shadow: 0 2px 8px #0001;
-}
-
-h2 {
-    margin-bottom: 15px;
-    color: #1d9bf0;
-}
-
-input, textarea {
-    width: 100%;
-    padding: 12px;
-    margin-bottom: 12px;
-    border: 1px solid #ccc;
-    border-radius: 6px;
-    font-size: 15px;
-}
-
-textarea {
-    height: 90px;
-    resize: none;
-}
-
-button {
-    background: #1d9bf0;
-    color: white;
-    border: none;
-    padding: 10px 18px;
-    border-radius: 6px;
-    cursor: pointer;
-}
-
-button:hover {
-    background: #087ac1;
-}
-
-.user, .post {
-    padding: 15px;
-    border-bottom: 1px solid #eee;
-}
-
-.user {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.post h3 {
-    margin-bottom: 8px;
-}
-
-.post p {
-    margin-bottom: 12px;
-    overflow-wrap: anywhere;
-}
-
-.post-actions {
-    display: flex;
-    gap: 10px;
-}
-
-.follow-btn {
-    background: #16a34a;
-}
-
-.unfollow-btn {
-    background: #777;
-}
-
-.like-btn {
-    background: #e83e65;
-}
-
-.delete-btn {
-    background: #dc2626;
-}
-
-.empty {
-    color: #888;
-    padding: 12px 0;
-}
-
-@media(max-width: 500px) {
-    .container {
-        width: 95%;
+    if (!username || !content) {
+        alert("Enter username and post content!");
+        return;
     }
 
-    section {
-        padding: 15px;
+    currentUser = username;
+
+    posts.unshift({
+        id: Date.now(),
+        username: username,
+        content: content,
+        likes: 0
+    });
+
+    // Automatically follow yourself
+    if (!following.includes(username)) {
+        following.push(username);
     }
-        }
+
+    saveData();
+
+    document.getElementById("postContent").value = "";
+
+    displayPosts();
+    displayUsers();
+}
+
+// Display Users
+function displayUsers() {
+    const usersList = document.getElementById("usersList");
+
+    usersList.innerHTML = "";
+
+    users.forEach(user => {
+        const isFollowing = following.includes(user);
+
+        usersList.innerHTML += `
+            <div class="user">
+                <strong>${user}</strong>
+                <button class="${isFollowing ? 'unfollow-btn' : 'follow-btn'}"
+                    onclick="toggleFollow('${user}')">
+                    ${isFollowing ? "Unfollow" : "Follow"}
+                </button>
+            </div>
+        `;
+    });
+}
+
+// Follow / Unfollow
+function toggleFollow(user) {
+    if (following.includes(user)) {
+        following = following.filter(name => name !== user);
+    } else {
+        following.push(user);
+    }
+
+    saveData();
+    displayUsers();
+    displayPosts();
+}
+
+// Display Feed
+function displayPosts() {
+    const postsList = document.getElementById("postsList");
+
+    postsList.innerHTML = "";
+
+    const feedPosts = posts.filter(post =>
+        following.includes(post.username)
+    );
+
+    if (feedPosts.length === 0) {
+        postsList.innerHTML =
+            '<p class="empty">No posts available. Follow people to see their posts!</p>';
+        return;
+    }
+
+    feedPosts.forEach(post => {
+        postsList.innerHTML += `
+            <div class="post">
+                <h3>@${post.username}</h3>
+                <p>${escapeHTML(post.content)}</p>
+
+                <div class="post-actions">
+                    <button class="like-btn"
+                        onclick="likePost(${post.id})">
+                        ❤️ ${post.likes}
+                    </button>
+
+                    ${post.username === currentUser ? `
+                        <button class="delete-btn"
+                            onclick="deletePost(${post.id})">
+                            Delete
+                        </button>
+                    ` : ""}
+                </div>
+            </div>
+        `;
+    });
+}
+
+// Prevent HTML injection in post content
+function escapeHTML(text) {
+    return text.replace(/[&<>"']/g, char => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+    })[char]);
+}
+
+// Like Post
+function likePost(id) {
+    const post = posts.find(post => post.id === id);
+
+    if (post) {
+        post.likes++;
+        saveData();
+        displayPosts();
+    }
+}
+
+// Delete Post
+function deletePost(id) {
+    posts = posts.filter(post => post.id !== id);
+
+    saveData();
+    displayPosts();
+}
+
+// Initial Display
+displayUsers();
+displayPosts();
+            
